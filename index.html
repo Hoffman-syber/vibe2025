@@ -40,6 +40,11 @@
             padding: 8px;
             width: 20%;
         }
+        .edit-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+        }
     </style>
 </head>
 <body>
@@ -67,6 +72,7 @@
 <script>
     let items = [];
     let nextId = 1;
+    let editing = null;
 
     function renderList() {
         const listBody = document.getElementById('listBody');
@@ -76,8 +82,11 @@
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${index + 1}</td>
-                <td>${item.text}</td>
-                <td><button onclick="removeItem(${index})">Remove</button></td>
+                <td class="item-text">${item.text}</td>
+                <td>
+                    <button onclick="editItem(${index})">Edit</button>
+                    <button onclick="removeItem(${index})">Remove</button>
+                </td>
             `;
             listBody.appendChild(row);
         });
@@ -97,6 +106,64 @@
     function removeItem(index) {
         items.splice(index, 1);
         renderList();
+    }
+
+    function editItem(index) {
+        if (editing !== null) return;
+        
+        const row = document.querySelectorAll('tr')[index + 1];
+        const textCell = row.querySelector('.item-text');
+        const text = textCell.textContent;
+        
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'edit-input';
+        input.value = text;
+        
+        textCell.textContent = '';
+        textCell.appendChild(input);
+        input.focus();
+        
+        editing = {
+            index: index,
+            input: input,
+            originalText: text
+        };
+        
+        input.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') saveEdit(index);
+        });
+        
+        input.addEventListener('blur', () => saveEdit(index));
+    }
+
+    function saveEdit(index) {
+        if (!editing) return;
+        
+        const { input, originalText } = editing;
+        const newValue = input.value.trim();
+        
+        if (newValue === originalText) {
+            cancelEdit();
+            return;
+        }
+        
+        if (newValue) {
+            items[index].text = newValue;
+        } else {
+            removeItem(index);
+        }
+        
+        cancelEdit();
+        renderList();
+    }
+
+    function cancelEdit() {
+        if (editing) {
+            const { input } = editing;
+            input.parentNode.removeChild(input);
+            editing = null;
+        }
     }
 </script>
 
