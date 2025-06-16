@@ -1,0 +1,28 @@
+{
+  "dependencies": {
+    "express-session": "^1.18.1",
+    "mysql2": "^3.14.1",
+    "node-fetch": "^2.7.0",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "name": "vibe2025",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justprepod/vibe2025.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/justprepod/vibe2025/issues"
+  },
+  "homepage": "https://github.com/justprepod/vibe2025#readme"
+}

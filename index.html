@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>To-Do List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #todoList {
+            border-collapse: collapse;
+            width: 70%;
+            margin: 0 auto;
+        }
+        #todoList th, #todoList td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        #todoList th {
+            background-color: #f0f0f0;
+        }
+        #todoList th:first-child, #todoList th:last-child {
+            width: 5%;
+        }
+        #todoList th:nth-child(2) {
+            width: 90%;
+        }
+        .add-form {
+            margin-top: 20px;
+            width: 70%;
+            margin: 20px auto;
+        }
+        .add-form input[type="text"] {
+            padding: 8px;
+            width: 70%;
+        }
+        .add-form button {
+            padding: 8px;
+            width: 20%;
+        }
+        .edit-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+        }
+        /* Стили для формы логина */
+        #loginForm {
+            max-width: 300px;
+            margin: 100px auto;
+            text-align: center;
+        }
+        #loginForm input {
+            width: 90%;
+            padding: 8px;
+            margin: 8px 0;
+            box-sizing: border-box;
+        }
+        #loginForm button {
+            padding: 8px 16px;
+            width: 100%;
+        }
+        #loginError {
+            color: red;
+            margin-top: 10px;
+            min-height: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Форма логина -->
+<div id="loginForm" style="display: none;">
+    <h2>Login</h2>
+    <input type="text" id="login" placeholder="Login" autocomplete="username" />
+    <input type="password" id="password" placeholder="Password" autocomplete="current-password" />
+    <button onclick="submitLogin()">Login</button>
+    <div id="loginError"></div>
+</div>
+
+<!-- Основной To-Do List -->
+<div id="todoApp" style="display: none;">
+
+    <h2 style="text-align: center;">To-Do List</h2>
+
+    <table id="todoList">
+        <thead>
+            <tr>
+                <th>Number</th>
+                <th>Text</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="listBody">
+            {{rows}}
+        </tbody>
+    </table>
+
+    <div class="add-form">
+        <input type="text" id="newItem" placeholder="Enter new item" />
+        <button onclick="addItem()">Add</button>
+    </div>
+
+</div>
+
+<script>
+    // Переменные для списка дел
+    let items = [];
+    let nextId = 1;
+    let editing = null;
+
+    // Функция отображения формы логина
+    function showLogin() {
+        document.getElementById('loginForm').style.display = '';
+        document.getElementById('todoApp').style.display = 'none';
+        document.getElementById('loginError').textContent = '';
+    }
+
+    // Функция отображения To-Do List
+    function showTodo() {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('todoApp').style.display = '';
+        fetchItemsFromServer();
+    }
+
+    // Проверка авторизации при загрузке страницы
+    window.onload = function() {
+        fetch('/check-auth')
+            .then(res => res.json())
+            .then(data => {
+                if (data.authenticated) {
+                    showTodo();
+                } else {
+                    showLogin();
+                }
+            })
+            .catch(() => showLogin());
+    };
+
+    // Отправка логина и пароля на сервер
+    function submitLogin() {
+        const login = document.getElementById('login').value.trim();
+        const password = document.getElementById('password').value.trim();
+        if (!login || !password) {
+            document.getElementById('loginError').textContent = 'Please enter login and password';
+            return;
+        }
+        fetch('/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ login, password })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showTodo();
+            } else {
+                document.getElementById('loginError').textContent = 'Invalid login or password';
+            }
+        })
+        .catch(() => {
+            document.getElementById('loginError').textContent = 'Server error';
+        });
+    }
+
+    // Загрузка списка дел с сервера
+    function fetchItemsFromServer() {
+        fetch('/items')
+            .then(res => res.json())
+            .then(data => {
+                items = data;
+                nextId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
+                renderList();
+            })
+            .catch(() => {
+                alert('Failed to load to-do items from server');
+            });
+    }
+
+    // Отрисовка списка дел
+    function renderList() {
+        const listBody = document.getElementById('listBody');
+        listBody.innerHTML = '';
+
+        items.forEach((item, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td class="item-text">${item.text}</td>
+                <td>
+                    <button onclick="editItem(${index})">Edit</button>
+                    <button onclick="removeItem(${index})">Remove</button>
+                </td>
+            `;
+            listBody.appendChild(row);
+        });
+    }
+
+    // Добавление нового элемента
+    function addItem() {
+        const newItemInput = document.getElementById('newItem');
+        const newItemText = newItemInput.value.trim();
+
+        if (!newItemText) return;
+
+        // Отправляем на сервер
+        fetch('/items', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ text: newItemText })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                items.push({ id: data.id, text: newItemText });
+                newItemInput.value = '';
+                renderList();
+            } else {
+                alert('Failed to add item');
+            }
+        })
+        .catch(() => alert('Server error'));
+    }
+
+    // Удаление элемента
+    function removeItem(index) {
+        const item = items[index];
+        fetch(`/items/${item.id}`, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    items.splice(index, 1);
+                    renderList();
+                } else {
+                    alert('Failed to remove item');
+                }
+            })
+            .catch(() => alert('Server error'));
+    }
+
+    // Редактирование элемента
+    function editItem(index) {
+        if (editing !== null) return;
+
+        const row = document.querySelectorAll('#listBody tr')[index];
+        const textCell = row.querySelector('.item-text');
+        const text = textCell.textContent;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'edit-input';
+        input.value = text;
+
+        textCell.textContent = '';
+        textCell.appendChild(input);
+        input.focus();
+
+        editing = { index, input, originalText: text };
+
+        input.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') saveEdit(index);
+            else if (e.key === 'Escape') cancelEdit();
+        });
+
+        input.addEventListener('blur', () => saveEdit(index));
+    }
+
+    // Сохранение редактирования
+    function saveEdit(index) {
+        if (!editing) return;
+
+        const { input, originalText } = editing;
+        const newValue = input.value.trim();
+
+        if (newValue === originalText) {
+            cancelEdit();
+            return;
+        }
+
+        if (!newValue) {
+            // Если пустое, удаляем
+            removeItem(index);
+            cancelEdit();
+            return;
+        }
+
+        const item = items[index];
+        fetch(`/items/${item.id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ text: newValue })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                items[index].text = newValue;
+                renderList();
+            } else {
+                alert('Failed to update item');
+            }
+            cancelEdit();
+        })
+        .catch(() => {
+            alert('Server error');
+            cancelEdit();
+        });
+    }
+
+    // Отмена редактирования
+    function cancelEdit() {
+        if (editing) {
+            const { input } = editing;
+            if (input.parentNode) {
+                input.parentNode.textContent = editing.originalText;
+            }
+            editing = null;
+        }
+    }
+</script>
+
+</body>
+</html>
